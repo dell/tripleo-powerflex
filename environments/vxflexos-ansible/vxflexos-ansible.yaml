@@ -1,0 +1,41 @@
+resource_registry:
+  OS::TripleO::Services::VxFlexMDM: ../../docker/services/vxflexos-ansible/vxflexos-mdm.yaml
+  OS::TripleO::Services::VxFlexLIA: ../../docker/services/vxflexos-ansible/vxflexos-lia.yaml
+  OS::TripleO::Services::VxFlexSDS: ../../docker/services/vxflexos-ansible/vxflexos-sds.yaml
+  OS::TripleO::Services::VxFlexSDC: ../../docker/services/vxflexos-ansible/vxflexos-sdc.yaml
+
+parameter_defaults:
+
+  # Can be either local or external  
+  VxFlexOSRpmsMethod: external
+
+  # Used to override default RPMs path.
+  #VxFlexOSRpmsPath: '/opt/dellemc/vxflexos/rpms'
+
+  VxFlexOSClusterName: vxflexos
+  VxFlexOSProtectionDomain: domain1
+  VxFlexOSStoragePool: pool1
+
+  # Only 3-node cluster config is supported at this time
+  VxFlexOSClusterConfig: 3_node
+  
+  # Interface used for Management access. Must be accessible from external. (Optional)
+  VxFlexOSMgmtInterface: vlan881
+
+  # Current Interface for MDM communication with SDC and SDS. Should be split up into two
+  # physical ports as bonding is really not recommended in production.
+  VxFlexOSClusterInterface: vlan170
+
+  VxFlexOSClusterVirtualIP: 192.168.170.40
+
+  # By default, All traffic including SDS-SDS and SDS-SDC goes to the same network
+  # Uncomment the below line when using dedicated network rebuild and rebalance which can
+  # traffic intensive based upon the eventual failure of a SDS node. (Optional)
+  #VxFlexOSRebuildInterface: 
+  
+  VxFlexOSDisks: ['/dev/nvme0n1','/dev/nvme1n1','/dev/nvme2n1','/dev/nvme3n1','/dev/nvme4n1','/dev/nvme5n1','/dev/nvme6n1','/dev/nvme7n1']
+
+  VxFlexOSPassword: 'Vxflex123'
+  VxFlexOSLiaToken: 'Vxflex123'
+
+  #VxFlexOSLicense: '/opt/dellemc/vxflexos/01da2d7a6a728740_SIO_4715942_21-May-2020_exp.lic'

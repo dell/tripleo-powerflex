@@ -1,0 +1,82 @@
+---
+- hosts:
+  - mdms
+  - tbs
+  - sdss
+  - sdcs
+  - lias
+  
+  tags:
+    - always
+  
+  pre_tasks:
+    - name: gather and delegate facts
+      setup:
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      with_items: "{{ groups['all'] }}"
+      run_once: true
+
+- hosts: all
+  name: "Set facts"
+  gather_facts: no 
+  roles: 
+    - vxflexos-facts
+  tags: vxflexos-facts
+
+- hosts: all
+  name: "dump facts"
+  tasks:
+    - template:
+        src: dump_variables
+        dest: /tmp/ansible_variables
+    - fetch:
+        src: /tmp/ansible_variables
+        dest: /tmp/ansible_variables/"{{ inventory_hostname }}_ansible_variables"
+
+- hosts: mdms
+  name: "Install VxFlex OS MDM"
+  gather_facts: no
+  become: true
+  roles:
+   - vxflexos-mdm
+  tags: vxflexos-mdm
+
+- hosts: tbs
+  name: "Install VxFlex OS TB"
+  gather_facts: no
+  become: true
+  roles:
+   - vxflexos-tb
+  tags: vxflexos-tb
+
+- hosts: mdms
+  name: "Configure VxFlex OS storage"
+  gather_facts: no
+  roles:
+    - vxflexos-config
+  tags: vxflexos-config
+                
+- hosts: sdss
+  name: "Install VxFlex OS SDS"
+  gather_facts: no
+  become: true
+  roles:
+    - vxflexos-sds
+  tags: vxflexos-sds
+
+- hosts: all
+  name: "Install VxFlex OS LIA"
+  gather_facts: no
+  become: true
+  roles: 
+    - vxflexos-lia
+  tags: vxflexos-lia
+                
+- hosts: sdcs
+  name: "Install VxFlex OS SDC"
+  gather_facts: no
+  become: true
+  roles:
+    - vxflexos-sdc
+  tags: vxflexos-sdc

@@ -1,0 +1,4 @@
+file_glob_name: sdc
+vxflexos_role_environment:
+  - key: "MDM_IP"
+    value: "{{ vxflexos_mdm_ips }}"
