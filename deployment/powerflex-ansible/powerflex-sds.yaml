@@ -1,7 +1,7 @@
-heat_template_version: queens
+heat_template_version: rocky
 
 description: >
-  VxFlexOS SDS Service
+  PowerFlex SDS service.
 
 parameters:
   ServiceData:
@@ -32,8 +32,8 @@ parameters:
     type: json
 
 resources:
-  VxFlexOSBase:
-    type: ./vxflexos-base.yaml
+  PowerflexBase:
+    type: ./powerflex-base.yaml
     properties:
       ServiceData: {get_param: ServiceData}
       ServiceNetMap: {get_param: ServiceNetMap}
@@ -42,25 +42,42 @@ resources:
       RoleName: {get_param: RoleName}
       RoleParameters: {get_param: RoleParameters}
 
+  PowerflexSdsAnsibleVars:
+    type: OS::Heat::Value
+    properties:
+      type: json
+      value:
+        vars: {}
+
 outputs:
   role_data:
-    description: Role data for the VxFlexOS SDS service.
+    description: Role data for the PowerFlex SDS service.
     value:
-      service_name: vxflexos_sds
-      upgrade_tasks:
+      service_name: powerflex_sds
+      upgrade_tasks: []
       puppet_config:
         config_image: ''
         config_volume: ''
         step_config: ''
       docker_config: {}
-      workflow_tasks:  {get_attr: [VxFlexOSBase, role_data, workflow_tasks]}
-      config_settings:
+      external_deploy_tasks:
+        list_concat:
+        - {get_attr: [PowerflexBase, role_data, external_deploy_tasks]}
+        - - name: powerflex_sds_external_deploy_init
+            when: step|int == 1
+            block:
+              - name: set powerflex-ansible group vars sdss
+                set_fact:
+                  powerflex_ansible_group_vars_sdss: {get_attr: [PowerflexSdsAnsibleVars, value, vars]}
+
+      external_update_tasks: {}
+      external_upgrade_tasks: {}
+      config_settings: 
         map_merge:
-        - tripleo.vxflexos_sds.firewall_rules:
-            '203 vxflexos_sds_listener':
+        - tripleo::powerflex_sds::firewall_rules:
+            '202 powerflex_sds':
               dport:
-              - '7072'
-        - vxflexos_sds_ansible_vars:
-            map_merge:
-            - {get_attr: [VxFlexOSBase, role_data, config_settings, vxflexos_common_ansible_vars]}
- 
+                list_concat:
+                  - - '7072'
+        - {}
+
