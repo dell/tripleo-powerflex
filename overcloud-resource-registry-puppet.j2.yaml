@@ -1,22 +1,12 @@
 resource_registry:
 
-  OS::TripleO::SoftwareDeployment: OS::Heat::StructuredDeployment
+  OS::TripleO::SoftwareDeployment: config-download-structured.yaml
+  OS::Heat::SoftwareDeployment: config-download-software.yaml
+  OS::Heat::StructuredDeployment: config-download-structured.yaml
   OS::TripleO::PostDeploySteps: common/post.yaml
-  OS::TripleO::AllNodes::SoftwareConfig: puppet/all-nodes-config.yaml
-  OS::TripleO::AllNodesDeployment: OS::Heat::StructuredDeployments
-  OS::TripleO::HostPrepDeployment: OS::Heat::SoftwareDeploymentGroup
-  OS::TripleO::Hosts::SoftwareConfig: hosts-config.yaml
-  OS::TripleO::Ssh::HostPubKey: extraconfig/tasks/ssh/host_public_key.yaml
-  OS::TripleO::Ssh::KnownHostsConfig: extraconfig/tasks/ssh/known_hosts_config.yaml
-  OS::TripleO::Ssh::KnownHostsDeployment: OS::Heat::StructuredDeployments
+  OS::TripleO::AllNodesDeployment: OS::Heat::None
   OS::TripleO::DefaultPasswords: default_passwords.yaml
   OS::TripleO::RandomString: OS::Heat::RandomString
-
-  # Tasks (for internal TripleO usage)
-  OS::TripleO::Tasks::UpdateWorkflow: OS::Heat::None
-  OS::TripleO::Tasks::PackageUpdate: extraconfig/tasks/yum_update.yaml
-  # stable/queens fix to enabled PreNetworkConfig via heat
-  OS::TripleO::Reboot::SoftwareDeployment: OS::TripleO::SoftwareDeployment
 
 {% for role in roles %}
   OS::TripleO::{{role.name}}::PreNetworkConfig: OS::Heat::None
@@ -26,16 +16,9 @@ resource_registry:
   OS::TripleO::Tasks::{{role.name}}PostConfig: OS::Heat::None
   OS::TripleO::{{role.name}}ExtraConfigPre: puppet/extraconfig/pre_deploy/default.yaml
   # Port assignments for the {{role.name}} role
-  {%- if role.name != 'ObjectStorage' %}
-    {%- for network in networks %}
+  {%- for network in networks if network.enabled|default(true) and network.name in role.networks|default([]) %}
   OS::TripleO::{{role.name}}::Ports::{{network.name}}Port: network/ports/noop.yaml
-    {%- endfor %}
-  {%- else %}
-  # Note we have to special-case ObjectStorage for backwards compatibility
-    {%- for network in networks %}
-  OS::TripleO::ObjectStorage::Ports::{{network.name}}Port: network/ports/noop.yaml
-    {%- endfor %}
-  {%- endif %}
+  {%- endfor %}
   OS::TripleO::{{role.name}}::Net::SoftwareConfig: net-config-noop.yaml
 {% endfor %}
 
@@ -85,7 +68,7 @@ resource_registry:
   # TripleO overcloud networks
   OS::TripleO::Network: network/networks.yaml
 
-  {%- for network in networks %}
+  {%- for network in networks if network.enabled|default(true) %}
   OS::TripleO::Network::{{network.name}}: OS::Heat::None
   {%- endfor %}
 
@@ -96,11 +79,12 @@ resource_registry:
   OS::TripleO::Network::Ports::NetIpListMap: network/ports/net_ip_list_map.yaml
 
   # Port assignments for the VIPs
-  {%- for network in networks if network.vip|default(false) %}
+  {%- for network in networks if network.vip|default(false) and network.enabled|default(true) %}
   OS::TripleO::Network::Ports::{{network.name}}VipPort: network/ports/noop.yaml
   {%- endfor %}
 
   OS::TripleO::Network::Ports::RedisVipPort: network/ports/ctlplane_vip.yaml
+  OS::TripleO::Network::Ports::OVNDBsVipPort: network/ports/ctlplane_vip.yaml
   OS::TripleO::Network::Ports::ControlPlaneVipPort: OS::Neutron::Port
 
   # Service to network Mappings
@@ -114,160 +98,148 @@ resource_registry:
 
   OS::TripleO::DeployedServerEnvironment: OS::Heat::None
 
-  OS::TripleO::DeploymentSteps: OS::Heat::StructuredDeploymentGroup
-  OS::TripleO::WorkflowSteps: OS::Mistral::ExternalResource
+  OS::TripleO::DeploymentSteps: OS::Heat::None
+  OS::TripleO::WorkflowSteps: OS::Heat::None
 
   # services
 {%- for role in roles %}
   OS::TripleO::{{role.name}}Services: common/services/{{role.name.lower()}}-role.yaml
 {%- endfor %}
   OS::TripleO::Services::Aide: OS::Heat::None
-  OS::TripleO::Services::Apache: puppet/services/apache.yaml
-  OS::TripleO::Services::CACerts: puppet/services/ca-certs.yaml
+  OS::TripleO::Services::Apache: deployment/apache/apache-baremetal-puppet.yaml
+  OS::TripleO::Services::CACerts: deployment/certs/ca-certs-baremetal-puppet.yaml
   OS::TripleO::Services::CephMds: OS::Heat::None
   OS::TripleO::Services::CephMgr: OS::Heat::None
   OS::TripleO::Services::CephMon: OS::Heat::None
   OS::TripleO::Services::CephRbdMirror: OS::Heat::None
   OS::TripleO::Services::CephRgw: OS::Heat::None
   OS::TripleO::Services::CephOSD: OS::Heat::None
+  OS::TripleO::Services::CephGrafana: OS::Heat::None
   OS::TripleO::Services::CephClient: OS::Heat::None
   OS::TripleO::Services::CephNfs: OS::Heat::None
   OS::TripleO::Services::CephExternal: OS::Heat::None
-  OS::TripleO::Services::CinderApi: docker/services/cinder-api.yaml
+  OS::TripleO::Services::CinderApi: deployment/cinder/cinder-api-container-puppet.yaml
   OS::TripleO::Services::CinderBackup: OS::Heat::None
-  OS::TripleO::Services::CinderScheduler: docker/services/cinder-scheduler.yaml
-  OS::TripleO::Services::CinderVolume: docker/services/cinder-volume.yaml
-  # undercloud cinder services
-  OS::TripleO::Services::UndercloudCinderApi: OS::Heat::None
-  OS::TripleO::Services::UndercloudCinderScheduler: OS::Heat::None
-  OS::TripleO::Services::UndercloudCinderVolume: OS::Heat::None
-  OS::TripleO::Services::BlockStorageCinderVolume: docker/services/cinder-volume.yaml
-  OS::TripleO::Services::Congress: OS::Heat::None
-  OS::TripleO::Services::Keystone: docker/services/keystone.yaml
-  OS::TripleO::Services::GlanceApi: docker/services/glance-api.yaml
-  OS::TripleO::Services::GlanceRegistry: puppet/services/disabled/glance-registry-disabled.yaml
-  OS::TripleO::Services::HeatApi: docker/services/heat-api.yaml
-  OS::TripleO::Services::HeatApiCfn: docker/services/heat-api-cfn.yaml
-  OS::TripleO::Services::HeatApiCloudwatch: puppet/services/disabled/heat-api-cloudwatch-disabled.yaml
-  OS::TripleO::Services::HeatEngine: docker/services/heat-engine.yaml
-  OS::TripleO::Services::Kernel: puppet/services/kernel.yaml
-  OS::TripleO::Services::Kubernetes::Master: extraconfig/services/kubernetes-master.yaml
-  OS::TripleO::Services::Kubernetes::Worker: extraconfig/services/kubernetes-worker.yaml
-  OS::TripleO::Services::MySQL: docker/services/database/mysql.yaml
+  OS::TripleO::Services::CinderScheduler: deployment/cinder/cinder-scheduler-container-puppet.yaml
+  OS::TripleO::Services::CinderVolume: deployment/cinder/cinder-volume-container-puppet.yaml
+  OS::TripleO::Services::BlockStorageCinderVolume: deployment/cinder/cinder-volume-container-puppet.yaml
+  OS::TripleO::Services::Keystone: deployment/keystone/keystone-container-puppet.yaml
+  OS::TripleO::Services::GlanceApi: deployment/glance/glance-api-container-puppet.yaml
+  OS::TripleO::Services::HeatApi: deployment/heat/heat-api-container-puppet.yaml
+  OS::TripleO::Services::HeatApiCfn: deployment/heat/heat-api-cfn-container-puppet.yaml
+  OS::TripleO::Services::HeatApiCloudwatch: deployment/heat/heat-api-cloudwatch-disabled-puppet.yaml
+  OS::TripleO::Services::HeatEngine: deployment/heat/heat-engine-container-puppet.yaml
+  OS::TripleO::Services::Kernel: deployment/kernel/kernel-baremetal-ansible.yaml
+  OS::TripleO::Services::Kubernetes::Master: deployment/deprecated/kubernetes/kubernetes-master-baremetal-ansible.yaml
+  OS::TripleO::Services::Kubernetes::Worker: deployment/deprecated/kubernetes/kubernetes-worker-baremetal-ansible.yaml
+  OS::TripleO::Services::MySQL: deployment/database/mysql-container-puppet.yaml
   OS::TripleO::Services::NeutronBgpVpnApi: OS::Heat::None
   OS::TripleO::Services::NeutronBgpVpnBagpipe: OS::Heat::None
   OS::TripleO::Services::NeutronSfcApi: OS::Heat::None
-  OS::TripleO::Services::NeutronDhcpAgent: docker/services/neutron-dhcp.yaml
+  OS::TripleO::Services::NeutronDhcpAgent:  OS::Heat::None
   OS::TripleO::Services::NeutronL2gwApi: OS::Heat::None
-  OS::TripleO::Services::NeutronL3Agent: docker/services/neutron-l3.yaml
+  OS::TripleO::Services::NeutronL3Agent: OS::Heat::None
   OS::TripleO::Services::NeutronL2gwAgent: OS::Heat::None
-  OS::TripleO::Services::NeutronLbaasv2Agent: OS::Heat::None
-  OS::TripleO::Services::NeutronLbaasv2Api: OS::Heat::None
-  OS::TripleO::Services::NeutronMetadataAgent: docker/services/neutron-metadata.yaml
-  OS::TripleO::Services::OVNMetadataAgent: OS::Heat::None
+  OS::TripleO::Services::NeutronMetadataAgent: OS::Heat::None
+  OS::TripleO::Services::OVNMetadataAgent: deployment/ovn/ovn-metadata-container-puppet.yaml
   # FIXME(shardy) the duplicate NeutronServer line can be removed when we've updated
   # the multinode job ControllerServices after this patch merges
-  OS::TripleO::Services::NeutronServer: docker/services/neutron-api.yaml
-  OS::TripleO::Services::NeutronApi: docker/services/neutron-api.yaml
-  OS::TripleO::Services::NeutronCorePlugin: docker/services/neutron-plugin-ml2.yaml
+  OS::TripleO::Services::NeutronServer: deployment/neutron/neutron-api-container-puppet.yaml
+  OS::TripleO::Services::NeutronApi: deployment/neutron/neutron-api-container-puppet.yaml
+  OS::TripleO::Services::NeutronCorePlugin: deployment/neutron/neutron-plugin-ml2-container-puppet.yaml
   # can be the same as NeutronCorePlugin but some vendors install different
   # things where VMs run
-  OS::TripleO::Services::ComputeNeutronCorePlugin: docker/services/neutron-plugin-ml2.yaml
-  OS::TripleO::Services::ComputeNeutronCorePluginNuage: puppet/services/neutron-compute-plugin-nuage.yaml
+  OS::TripleO::Services::ComputeNeutronCorePlugin: OS::Heat::None
+  OS::TripleO::Services::ComputeNeutronCorePluginNuage: deployment/neutron/neutron-compute-plugin-nuage.yaml
   # Neutron Core Plugin Vendors (these typically override NeutronCorePlugin)
-  OS::TripleO::Services::NeutronCorePluginML2OVN: puppet/services/neutron-plugin-ml2-ovn.yaml
-  OS::TripleO::Services::NeutronCorePluginPlumgrid: puppet/services/neutron-plugin-plumgrid.yaml
-  OS::TripleO::Services::NeutronCorePluginNuage: puppet/services/neutron-plugin-nuage.yaml
-  OS::TripleO::Services::NeutronCorePluginML2Nuage: puppet/services/neutron-plugin-ml2-nuage.yaml
-  OS::TripleO::Services::NeutronCorePluginNSX: docker/services/neutron-plugin-nsx.yaml
-  OS::TripleO::Services::OVNDBs: OS::Heat::None
-  OS::TripleO::Services::OVNController: OS::Heat::None
+  OS::TripleO::Services::NeutronCorePluginML2OVN: deployment/neutron/neutron-plugin-ml2-ovn.yaml
+  OS::TripleO::Services::NeutronCorePluginNuage: deployment/neutron/neutron-plugin-nuage.yaml
+  OS::TripleO::Services::NeutronCorePluginML2Nuage: deployment/neutron/neutron-plugin-ml2-nuage.yaml
+  OS::TripleO::Services::NeutronCorePluginNSX: deployment/neutron/neutron-plugin-nsx-container-puppet.yaml
+  OS::TripleO::Services::OVNDBs: deployment/ovn/ovn-dbs-container-puppet.yaml
+  OS::TripleO::Services::OVNController: deployment/ovn/ovn-controller-container-puppet.yaml
+  OS::TripleO::Services::OvsDpdkNetcontrold: OS::Heat::None
 
-  OS::TripleO::Services::NeutronCorePluginMidonet: puppet/services/neutron-midonet.yaml
-  OS::TripleO::Services::NeutronCorePluginVTS: docker/services/neutron-plugin-ml2-cisco-vts.yaml
-  OS::TripleO::Services::NeutronCorePluginML2Ansible: docker/services/neutron-plugin-ml2-ansible.yaml
-  OS::TripleO::Services::NeutronOvsAgent: docker/services/neutron-ovs-agent.yaml
+  OS::TripleO::Services::NeutronCorePluginMLNXSDN: deployment/neutron/neutron-plugin-ml2-mlnx-sdn-assist-container-puppet.yaml
+  OS::TripleO::Services::NeutronCorePluginVTS: deployment/neutron/neutron-plugin-ml2-cisco-vts-container-puppet.yaml
+  OS::TripleO::Services::NeutronCorePluginML2Ansible: deployment/neutron/neutron-plugin-ml2-ansible-container-puppet.yaml
+  OS::TripleO::Services::NeutronNuageVrs: deployment/neutron/neutron-controller-plugin-nuage.yaml
+  OS::TripleO::Services::NeutronOvsAgent: OS::Heat::None
   OS::TripleO::Services::NeutronLinuxbridgeAgent: OS::Heat::None
-  OS::TripleO::Services::ComputeNeutronOvsAgent: docker/services/neutron-ovs-agent.yaml
+  OS::TripleO::Services::ComputeNeutronOvsAgent: OS::Heat::None
   OS::TripleO::Services::ComputeNeutronOvsDpdk: OS::Heat::None
   OS::TripleO::Services::Pacemaker: OS::Heat::None
   OS::TripleO::Services::PacemakerRemote: OS::Heat::None
   OS::TripleO::Services::NeutronSriovAgent: OS::Heat::None
   OS::TripleO::Services::NeutronSriovHostConfig: OS::Heat::None
-  OS::TripleO::Services::RabbitMQ: docker/services/rabbitmq.yaml
-  OS::TripleO::Services::Qdr: docker/services/qdrouterd.yaml
-  OS::TripleO::Services::HAproxy: docker/services/haproxy.yaml
-  OS::TripleO::Services::HAProxyPublicTLS: OS::Heat::None
+  OS::TripleO::Services::NeutronMlnxAgent: OS::Heat::None
+  OS::TripleO::Services::NeutronAgentsIBConfig: OS::Heat::None
+  OS::TripleO::Services::OsloMessagingRpc: deployment/rabbitmq/rabbitmq-messaging-rpc-container-puppet.yaml
+  OS::TripleO::Services::OsloMessagingNotify: deployment/rabbitmq/rabbitmq-messaging-notify-shared-puppet.yaml
+  OS::TripleO::Services::RabbitMQ: OS::Heat::None
+  OS::TripleO::Services::Rear: OS::Heat::None
+  OS::TripleO::Services::Qdr: OS::Heat::None
+  OS::TripleO::Services::HAproxy: deployment/haproxy/haproxy-container-puppet.yaml
+  OS::TripleO::Services::HAProxyPublicTLS: deployment/haproxy/haproxy-public-tls-inject.yaml
   OS::TripleO::Services::HAProxyInternalTLS: OS::Heat::None
-  OS::TripleO::Services::Iscsid: docker/services/iscsid.yaml
-  OS::TripleO::Services::Keepalived: docker/services/keepalived.yaml
-  OS::TripleO::Services::Memcached: docker/services/memcached.yaml
+  OS::TripleO::Services::Iscsid: deployment/iscsid/iscsid-container-puppet.yaml
+  OS::TripleO::Services::Keepalived: deployment/keepalived/keepalived-container-puppet.yaml
+  OS::TripleO::Services::Memcached: deployment/memcached/memcached-container-puppet.yaml
   OS::TripleO::Services::SaharaApi: OS::Heat::None
   OS::TripleO::Services::SaharaEngine: OS::Heat::None
-  OS::TripleO::Services::Tuned: puppet/services/tuned.yaml
+  OS::TripleO::Services::Tuned: deployment/tuned/tuned-baremetal-ansible.yaml
   OS::TripleO::Services::Securetty: OS::Heat::None
-  OS::TripleO::Services::Sshd: docker/services/sshd.yaml
-  OS::TripleO::Services::Redis: docker/services/database/redis.yaml
-  OS::TripleO::Services::MongoDb: puppet/services/disabled/mongodb-disabled.yaml
-  OS::TripleO::Services::NovaApi: docker/services/nova-api.yaml
-  OS::TripleO::Services::NovaCompute: docker/services/nova-compute.yaml
-  OS::TripleO::Services::NovaConductor: docker/services/nova-conductor.yaml
-  OS::TripleO::Services::NovaConsoleauth: docker/services/nova-consoleauth.yaml
-  OS::TripleO::Services::NovaLibvirt: docker/services/nova-libvirt.yaml
-  OS::TripleO::Services::NovaLibvirtGuests: puppet/services/nova-libvirt-guests.yaml
-  OS::TripleO::Services::NovaMetadata: docker/services/nova-metadata.yaml
-  OS::TripleO::Services::NovaMigrationTarget: docker/services/nova-migration-target.yaml
-  OS::TripleO::Services::NovaPlacement: docker/services/nova-placement.yaml
-  OS::TripleO::Services::NovaScheduler: docker/services/nova-scheduler.yaml
-  OS::TripleO::Services::NovaVncProxy: docker/services/nova-vnc-proxy.yaml
-  OS::TripleO::Services::Ntp: puppet/services/time/ntp.yaml
-  OS::TripleO::Services::ContainersLogrotateCrond: docker/services/logrotate-crond.yaml
-  OS::TripleO::Services::OpenShift::Master: OS::Heat::None
-  OS::TripleO::Services::OpenShift::Worker: OS::Heat::None
-  OS::TripleO::Services::SwiftProxy: docker/services/swift-proxy.yaml
+  # TODO(aschultz): Remove this in U as we switched to a task in the deploy
+  OS::TripleO::Services::SELinux: OS::Heat::None
+  OS::TripleO::Services::Sshd: deployment/sshd/sshd-baremetal-puppet.yaml
+  OS::TripleO::Services::Redis: OS::Heat::None
+  OS::TripleO::Services::NovaApi: deployment/nova/nova-api-container-puppet.yaml
+  OS::TripleO::Services::NovaCompute: deployment/nova/nova-compute-container-puppet.yaml
+  OS::TripleO::Services::NovaConductor: deployment/nova/nova-conductor-container-puppet.yaml
+  OS::TripleO::Services::NovaLibvirt: deployment/nova/nova-libvirt-container-puppet.yaml
+  OS::TripleO::Services::NovaLibvirtGuests: deployment/nova/nova-libvirt-guests-container-puppet.yaml
+  OS::TripleO::Services::NovaMetadata: deployment/nova/nova-metadata-container-puppet.yaml
+  OS::TripleO::Services::NovaMigrationTarget: deployment/nova/nova-migration-target-container-puppet.yaml
+  OS::TripleO::Services::NovaPlacement: OS::Heat::None
+  OS::TripleO::Services::PlacementApi: deployment/placement/placement-api-container-puppet.yaml
+  OS::TripleO::Services::NovaScheduler: deployment/nova/nova-scheduler-container-puppet.yaml
+  OS::TripleO::Services::NovaVncProxy: deployment/nova/nova-vnc-proxy-container-puppet.yaml
+  OS::TripleO::Services::Novajoin: OS::Heat::None
+  OS::TripleO::Services::NovaAZConfig: OS::Heat::None
+  OS::TripleO::Services::ContainersLogrotateCrond: deployment/logrotate/logrotate-crond-container-puppet.yaml
+  OS::TripleO::Services::SwiftProxy: deployment/swift/swift-proxy-container-puppet.yaml
   OS::TripleO::Services::SwiftDispersion: OS::Heat::None
   OS::TripleO::Services::ExternalSwiftProxy: OS::Heat::None
-  OS::TripleO::Services::SwiftStorage: docker/services/swift-storage.yaml
-  OS::TripleO::Services::SwiftRingBuilder: docker/services/swift-ringbuilder.yaml
-  OS::TripleO::Services::Snmp: puppet/services/snmp.yaml
-  OS::TripleO::Services::Tacker: OS::Heat::None
-  OS::TripleO::Services::Timezone: puppet/services/time/timezone.yaml
-  # Need these in Queens for FFU, Drop them in Rocky
-  OS::TripleO::Services::CeilometerApi: puppet/services/disabled/ceilometer-api-disabled.yaml
-  OS::TripleO::Services::CeilometerCollector: puppet/services/disabled/ceilometer-collector-disabled.yaml
-  OS::TripleO::Services::CeilometerExpirer: puppet/services/disabled/ceilometer-expirer-disabled.yaml
-  OS::TripleO::Services::CeilometerAgentCentral: docker/services/ceilometer-agent-central.yaml
-  OS::TripleO::Services::CeilometerAgentIpmi: docker/services/ceilometer-agent-ipmi.yaml
-  OS::TripleO::Services::CeilometerAgentNotification: docker/services/ceilometer-agent-notification.yaml
-  OS::TripleO::Services::ComputeCeilometerAgent: docker/services/ceilometer-agent-compute.yaml
-  OS::TripleO::Services::Horizon: docker/services/horizon.yaml
-  # Undercloud Telemetry services
-  OS::TripleO::Services::UndercloudCeilometerAgentCentral: OS::Heat::None
-  OS::TripleO::Services::UndercloudCeilometerAgentNotification: OS::Heat::None
-  OS::TripleO::Services::UndercloudCeilometerAgentIpmi: OS::Heat::None
-
+  OS::TripleO::Services::SwiftStorage: deployment/swift/swift-storage-container-puppet.yaml
+  OS::TripleO::Services::SwiftRingBuilder: deployment/swift/swift-ringbuilder-container-puppet.yaml
+  OS::TripleO::Services::Snmp: deployment/snmp/snmp-baremetal-puppet.yaml
+  OS::TripleO::Services::Timezone: deployment/time/timezone-baremetal-ansible.yaml
+  OS::TripleO::Services::CeilometerAgentCentral: OS::Heat::None
+  OS::TripleO::Services::CeilometerAgentIpmi: OS::Heat::None
+  OS::TripleO::Services::CeilometerAgentNotification: OS::Heat::None
+  OS::TripleO::Services::ComputeCeilometerAgent: OS::Heat::None
+  OS::TripleO::Services::Horizon: deployment/horizon/horizon-container-puppet.yaml
   #Gnocchi services
-  OS::TripleO::Services::GnocchiApi: docker/services/gnocchi-api.yaml
-  OS::TripleO::Services::GnocchiMetricd: docker/services/gnocchi-metricd.yaml
-  OS::TripleO::Services::GnocchiStatsd: docker/services/gnocchi-statsd.yaml
-  OS::TripleO::Services::UndercloudGnocchiApi: OS::Heat::None
-  OS::TripleO::Services::UndercloudGnocchiMetricd: OS::Heat::None
-  OS::TripleO::Services::UndercloudGnocchiStatsd: OS::Heat::None
+  OS::TripleO::Services::GnocchiApi: OS::Heat::None
+  OS::TripleO::Services::GnocchiMetricd: OS::Heat::None
+  OS::TripleO::Services::GnocchiStatsd: OS::Heat::None
+  # Drop Xinetd
+  OS::TripleO::Services::Xinetd: OS::Heat::None
 
-  # Redis
-  OS::TripleO::Services::UndercloudRedis: OS::Heat::None
+  # Time sync services
+  OS::TripleO::Services::Chrony: deployment/timesync/chrony-baremetal-ansible.yaml
+  OS::TripleO::Services::Ptp: OS::Heat::None
+  OS::TripleO::Services::Timesync: OS::TripleO::Services::Chrony
 
-  # Undercloud HA services
-  OS::TripleO::Services::UndercloudHAProxy: OS::Heat::None
-  OS::TripleO::Services::UndercloudKeepalived: OS::Heat::None
 
   # Services that are disabled by default (use relevant environment files):
-  OS::TripleO::Services::Fluentd: OS::Heat::None
   OS::TripleO::Services::IpaClient: OS::Heat::None
   OS::TripleO::Services::Ipsec: OS::Heat::None
   OS::TripleO::Services::Rhsm: OS::Heat::None
+  OS::TripleO::Services::MasqueradeNetworks: OS::Heat::None
+  OS::TripleO::Services::TripleoValidations: OS::Heat::None
+  OS::TripleO::Services::UndercloudUpgrade: OS::Heat::None
   OS::TripleO::Services::Collectd: OS::Heat::None
-  OS::TripleO::LoggingConfiguration: puppet/services/logging/fluentd-config.yaml
   OS::TripleO::Services::ManilaApi: OS::Heat::None
   OS::TripleO::Services::ManilaScheduler: OS::Heat::None
   OS::TripleO::Services::ManilaShare: OS::Heat::None
@@ -284,16 +256,11 @@ resource_registry:
   OS::TripleO::Services::BarbicanBackendDogtag: OS::Heat::None
   OS::TripleO::Services::BarbicanBackendKmip: OS::Heat::None
   OS::TripleO::Services::BarbicanBackendPkcs11Crypto: OS::Heat::None
-  OS::TripleO::Services::AodhApi: docker/services/aodh-api.yaml
-  OS::TripleO::Services::AodhEvaluator: docker/services/aodh-evaluator.yaml
-  OS::TripleO::Services::AodhListener: docker/services/aodh-listener.yaml
-  OS::TripleO::Services::AodhNotifier: docker/services/aodh-notifier.yaml
-  OS::TripleO::Services::UndercloudAodhApi: OS::Heat::None
-  OS::TripleO::Services::UndercloudAodhEvaluator: OS::Heat::None
-  OS::TripleO::Services::UndercloudAodhNotifier: OS::Heat::None
-  OS::TripleO::Services::UndercloudAodhListener: OS::Heat::None
-  OS::TripleO::Services::PankoApi: docker/services/panko-api.yaml
-  OS::TripleO::Services::UndercloudPankoApi: OS::Heat::None
+  OS::TripleO::Services::AodhApi: OS::Heat::None
+  OS::TripleO::Services::AodhEvaluator: OS::Heat::None
+  OS::TripleO::Services::AodhListener: OS::Heat::None
+  OS::TripleO::Services::AodhNotifier: OS::Heat::None
+  OS::TripleO::Services::PankoApi: OS::Heat::None
   OS::TripleO::Services::MetricsQdr: OS::Heat::None
   OS::TripleO::Services::MistralEngine: OS::Heat::None
   OS::TripleO::Services::MistralApi: OS::Heat::None
@@ -305,11 +272,9 @@ resource_registry:
   OS::TripleO::Services::IronicPxe: OS::Heat::None
   OS::TripleO::Services::IronicNeutronAgent: OS::Heat::None
   OS::TripleO::Services::NovaIronic: OS::Heat::None
-  OS::TripleO::Services::TripleoPackages: puppet/services/tripleo-packages.yaml
-  OS::TripleO::Services::TripleoFirewall: puppet/services/tripleo-firewall.yaml
-  OS::TripleO::Services::OpenDaylightApi: OS::Heat::None
-  OS::TripleO::Services::OpenDaylightOvs: OS::Heat::None
-  OS::TripleO::Services::SensuClient: OS::Heat::None
+  OS::TripleO::Services::TripleoFirewall: deployment/tripleo-firewall/tripleo-firewall-baremetal-puppet.yaml
+  OS::TripleO::Services::TripleoPackages: deployment/tripleo-packages/tripleo-packages-baremetal-puppet.yaml
+  OS::TripleO::Services::OpenStackClients: OS::Heat::None
   OS::TripleO::Services::TLSProxyBase: OS::Heat::None
   OS::TripleO::Services::Zaqar: OS::Heat::None
   OS::TripleO::Services::NeutronML2FujitsuCfab: OS::Heat::None
@@ -324,6 +289,7 @@ resource_registry:
   OS::TripleO::Services::CinderBackendPure: OS::Heat::None
   OS::TripleO::Services::CinderBackendScaleIO: OS::Heat::None
   OS::TripleO::Services::CinderBackendVRTSHyperScale: OS::Heat::None
+  OS::TripleO::Services::CinderBackendNVMeOF: OS::Heat::None
   OS::TripleO::Services::CinderHPELeftHandISCSI: OS::Heat::None
   OS::TripleO::Services::Etcd: OS::Heat::None
   OS::TripleO::Services::Ec2Api: OS::Heat::None
@@ -334,56 +300,73 @@ resource_registry:
   OS::TripleO::Services::OctaviaWorker: OS::Heat::None
   OS::TripleO::Services::OctaviaDeploymentConfig: OS::Heat::None
   OS::TripleO::Services::LiquidioCompute:  OS::Heat::None
-  OS::TripleO::Services::MySQLClient: puppet/services/database/mysql-client.yaml
+  OS::TripleO::Services::MySQLClient: deployment/database/mysql-client.yaml
   OS::TripleO::Services::Vpp: OS::Heat::None
   OS::TripleO::Services::NeutronVppAgent: OS::Heat::None
-  OS::TripleO::Services::Docker: puppet/services/docker.yaml
+  OS::TripleO::Services::Podman: deployment/podman/podman-baremetal-ansible.yaml
+  OS::TripleO::Services::Docker: OS::Heat::None
   OS::TripleO::Services::DockerRegistry: OS::Heat::None
-  OS::TripleO::Services::CertmongerUser: OS::Heat::None
+  OS::TripleO::Services::ContainerImagePrepare: deployment/container-image-prepare/container-image-prepare-baremetal-ansible.yaml
+  OS::TripleO::Services::CertmongerUser: deployment/certs/certmonger-user-baremetal-puppet.yaml
   OS::TripleO::Services::Clustercheck: OS::Heat::None
+  OS::TripleO::Services::Rsyslog: OS::Heat::None
   OS::TripleO::Services::RsyslogSidecar: OS::Heat::None
   OS::TripleO::Services::VRTSHyperScale: OS::Heat::None
   OS::TripleO::Services::SkydiveAgent: OS::Heat::None
   OS::TripleO::Services::SkydiveAnalyzer: OS::Heat::None
   OS::TripleO::Services::LoginDefs: OS::Heat::None
   OS::TripleO::Services::ComputeInstanceHA: OS::Heat::None
-  OS::TripleO::Services::Ptp: OS::Heat::None
+  OS::TripleO::Services::DesignateApi: OS::Heat::None
+  OS::TripleO::Services::DesignateCentral: OS::Heat::None
+  OS::TripleO::Services::DesignateProducer: OS::Heat::None
+  OS::TripleO::Services::DesignateWorker: OS::Heat::None
+  OS::TripleO::Services::DesignateMDNS: OS::Heat::None
+  OS::TripleO::Services::DesignateSink: OS::Heat::None
+
+  OS::TripleO::Services::PowerFlexLIA: OS::Heat::None
+  OS::TripleO::Services::PowerFlexMDM: OS::Heat::None
+  OS::TripleO::Services::PowerFlexSDC: OS::Heat::None
+  OS::TripleO::Services::PowerFlexSDS: OS::Heat::None
+
 
   # Default Neutron ML2 puppet plugin to use when NeutronCorePlugin is set to ML2
   # FIXME(bogdando): can not be switched yet due to puppet-base issues
-  # see https://review.openstack.org/#/c/563443
-  OS::TripleO::Docker::NeutronMl2PluginBase: puppet/services/neutron-plugin-ml2.yaml
-  OS::TripleO::Services::Multipathd: docker/services/multipathd.yaml
+  # see https://review.opendev.org/#/c/563443
+  OS::TripleO::Docker::NeutronMl2PluginBase: deployment/neutron/neutron-plugin-ml2-ovn.yaml
+  OS::TripleO::Services::Multipathd: OS::Heat::None
+  OS::TripleO::Services::GlanceApiEdge: OS::Heat::None
+  OS::TripleO::Services::HAproxyEdge: OS::Heat::None
 
   # Logging
-  OS::TripleO::Services::Tmpwatch: OS::Heat::None
-  OS::TripleO::Services::Logging::BarbicanApi: docker/services/logging/files/barbican-api.yaml
-  OS::TripleO::Services::Logging::GlanceApi: docker/services/logging/files/glance-api.yaml
-  OS::TripleO::Services::Logging::HAProxy: docker/services/logging/files/haproxy.yaml
-  OS::TripleO::Services::Logging::HeatApi: docker/services/logging/files/heat-api.yaml
-  OS::TripleO::Services::Logging::HeatApiCfn: docker/services/logging/files/heat-api-cfn.yaml
-  OS::TripleO::Services::Logging::HeatEngine: docker/services/logging/files/heat-engine.yaml
-  OS::TripleO::Services::Logging::Keystone: docker/services/logging/files/keystone.yaml
-  OS::TripleO::Services::Logging::NeutronApi: docker/services/logging/files/neutron-api.yaml
-  OS::TripleO::Services::Logging::NeutronCommon: docker/services/logging/files/neutron-common.yaml
-  OS::TripleO::Services::Logging::NovaApi: docker/services/logging/files/nova-api.yaml
-  OS::TripleO::Services::Logging::NovaCommon: docker/services/logging/files/nova-common.yaml
-  OS::TripleO::Services::Logging::NovaLibvirt: OS::Heat::None
-  OS::TripleO::Services::Logging::NovaPlacement: docker/services/logging/files/nova-placement.yaml
-  OS::TripleO::Services::Logging::PankoApi: docker/services/logging/files/panko-api.yaml
+  OS::TripleO::Services::Tmpwatch: deployment/logrotate/tmpwatch-install.yaml
+  OS::TripleO::Services::Logging::BarbicanApi: deployment/logging/files/barbican-api.yaml
+  OS::TripleO::Services::Logging::GlanceApi: deployment/glance/glance-api-logging-file-container.yaml
+  OS::TripleO::Services::Logging::HAProxy: deployment/logging/files/haproxy.yaml
+  OS::TripleO::Services::Logging::HeatApi: deployment/logging/files/heat-api.yaml
+  OS::TripleO::Services::Logging::HeatApiCfn: deployment/logging/files/heat-api-cfn.yaml
+  OS::TripleO::Services::Logging::HeatEngine: deployment/logging/files/heat-engine.yaml
+  OS::TripleO::Services::Logging::Keystone: deployment/logging/files/keystone.yaml
+  OS::TripleO::Services::Logging::NeutronApi: deployment/logging/files/neutron-api.yaml
+  OS::TripleO::Services::Logging::NeutronCommon: deployment/logging/files/neutron-common.yaml
+  OS::TripleO::Services::Logging::NovaApi: deployment/logging/files/nova-api.yaml
+  OS::TripleO::Services::Logging::NovaMetadata: deployment/logging/files/nova-metadata.yaml
+  OS::TripleO::Services::Logging::NovaCommon: deployment/logging/files/nova-common.yaml
+  OS::TripleO::Services::Logging::NovaLibvirt: deployment/logging/files/nova-libvirt.yaml
+  OS::TripleO::Services::Logging::PankoApi: deployment/logging/files/panko-api.yaml
+  OS::TripleO::Services::Logging::PlacementApi: deployment/logging/files/placement-api.yaml
 
-  # stable/queens fix to disable BootParams service (required for config-download)
-  OS::TripleO::Services::BootParams: OS::Heat::None
+  # Tempest
+  OS::TripleO::Services::Tempest: OS::Heat::None
 
-  # VxFlexOS Services
-  OS::TripleO::Services::VxFlexMDM: OS::Heat::None
-  OS::TripleO::Services::VxFlexLIA: OS::Heat::None
-  OS::TripleO::Services::VxFlexSDS: OS::Heat::None
-  OS::TripleO::Services::VxFlexSDC: OS::Heat::None
+  OS::TripleO::Services::BootParams: deployment/kernel/kernel-boot-params-baremetal-ansible.yaml
 
 parameter_defaults:
+  NeutronMechanismDrivers: ovn
+  ContainerCli: podman
   EnablePackageInstall: false
   SoftwareConfigTransport: POLL_TEMP_URL
+  # https://bugzilla.redhat.com/show_bug.cgi?id=1677364
+  ContainerCli: podman
 
 {% for role in roles %}
   # Parameters generated for {{role.name}} Role
