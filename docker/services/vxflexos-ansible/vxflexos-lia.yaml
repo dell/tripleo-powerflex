@@ -53,14 +53,16 @@ outputs:
         config_volume: ''
         step_config: ''
       docker_config: {}
-      workflow_tasks:  {get_attr: [VxFlexOSBase, role_data, workflow_tasks]}
-      config_settings:
-        map_merge:
-        - tripleo.vxflexos_lia.firewall_rules:
-            '202 vxflexos_lia_listener':
-              dport:
-              - '9099'
-        - vxflexos_lia_ansible_vars:
+      external_deploy_tasks:
+        - name: Install PowerFlexLIA
+          when: step|int == 5
+          import_role:
+            name: vxflexos-lia
+          vars:
             map_merge:
             - {get_attr: [VxFlexOSBase, role_data, config_settings, vxflexos_common_ansible_vars]}
-      
+      config_settings:
+        tripleo.vxflexos_lia.firewall_rules:
+          '202 vxflexos_lia_listener':
+            dport:
+            - '9099'

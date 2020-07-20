@@ -117,10 +117,6 @@ outputs:
         config_volume: ''
         step_config: ''
       docker_config: {}
-      workflow_tasks: 
-        step2:
-          - name: vxflexos_base_ansible_workflow
-            workflow: {get_param: VxFlexAnsibleWorkflowName}
       config_settings:
         vxflexos_common_ansible_vars:
           cluster_name: {get_param: VxFlexOSClusterName}
