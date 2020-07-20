@@ -1,5 +1,0 @@
-vxflexos_role_environment:
-  - key: "MDM_IP"
-    value: "{{ vxflexos_mdm_ips }}"
-  - key: "MDM_ROLE_IS_MANAGER"
-    value: 1

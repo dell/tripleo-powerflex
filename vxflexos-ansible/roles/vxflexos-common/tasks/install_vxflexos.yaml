@@ -1,8 +1,0 @@
----
-- name: Install VxFlexOS SW from local RPMs hosted in the overcloud image
-  include: "install_vxflexos_redhat_local.yaml"
-  when: rpms_method == "local"
-
-- name: Install VxFlexOS SW from local RPMs hosted on the Directord
-  include: "install_vxflexos_redhat_external.yaml"
-  when: rpms_method == "external"
