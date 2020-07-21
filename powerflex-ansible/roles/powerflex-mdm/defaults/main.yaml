@@ -1,0 +1,5 @@
+powerflex_role_environment:
+  - key: "MDM_IP"
+    value: "{{ powerflex_mdm_ips }}"
+  - key: "MDM_ROLE_IS_MANAGER"
+    value: 1
