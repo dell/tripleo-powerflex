@@ -1,6 +1,44 @@
 - name: include vars
   include_vars: ../vars/main.yaml
 
+- name: create file enforcement file
+  copy:
+    dest: "/tmp/scini.fe"
+    owner: root
+    group: root
+    content: |
+      /usr/bin/emc/scaleio/(.*).ko system_u:object_r:modules_object_t:s0
+      /bin/emc/scaleio/(.*).ko system_u:object_r:modules_object_t:s0 
+
+- name: create type enforcement file
+  copy:
+    dest: "/tmp/scini.te"
+    owner: root
+    group: root
+    content: |
+      module scini 1.0;
+
+      require {
+              type bin_t;
+              type kmod_t;
+              class system module_load;
+      }
+
+      #============= kmod_t ==============
+      allow kmod_t bin_t:system module_load;
+
+- name: build a policy module file
+  command: checkmodule -M -m -o /tmp/scini.mod /tmp/scini.te
+
+- name: create the policy package file
+  command: semodule_package -o /tmp/scini.pp -m /tmp/scini.mod -f /tmp/scini.fe
+
+- name: load the policy package file into SElinux
+  command: semodule -i /tmp/scini.pp
+
+- name: restore SElinux context
+  command: restorecon -R -v /bin/emc/scaleio
+
 - include: ../../powerflex-common/tasks/install_powerflex.yaml
 
 - name: login to MDM

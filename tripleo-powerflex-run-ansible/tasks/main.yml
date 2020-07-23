@@ -75,21 +75,26 @@
       {{ powerflex_ansible_command_list|join(' ') }} {{ inv }} {{ playbook }} 2>&1
       {% endfor %}
 
+- name: set powerflex-ansible shell script list
+  set_fact:
+    powerflex_ansible_script:
+      - "{{ playbook_dir }}/powerflex-ansible/powerflex_ansible_command.sh"
+
 - name: run powerflex-ansible
   become: true
-  shell: "{{ playbook_dir}}/powerflex-ansible/powerflex_ansible_command.sh"
+  shell: "{{ item }}"
   no_log: true
   failed_when: false
   register: outputs
   when: outputs.rc is undefined or outputs.rc == 0
+  loop: "{{ powerflex_ansible_script }}"
 
 - name: search output of powerflex-ansible run non-zero return codes
   set_fact:
     powerflex_ansible_std_out_err: "{{ item.stdout_lines | default([]) | union(item.stderr_lines | default([])) }}"
   no_log: true
   when:
-    - item.rc is defined
-    - item.rc != 0
+    - ( item.rc is defined and item.rc != 0 ) or ( item.stdout == 'FAILED' ) 
   loop: "{{ outputs.results }}"
 
 - name: print powerflex-ansible output in case of failure
