@@ -1,0 +1,17 @@
+parameter_defaults:
+  GlanceBackend: cinder
+  ControllerExtraConfig:
+    cinder::config::cinder_config:
+      scaleio/volume_driver:
+        value: cinder.volume.drivers.dell_emc.vxflexos.driver.VxFlexOSDriver
+      scaleio/volume_backend_name:
+        value: vxflexos
+      scaleio/san_ip:
+        value: 100.67.88.10
+      scaleio/san_login:
+        value: admin
+      scaleio/san_password:
+        value: Vxflex123
+      scaleio/sio_storage_pools:
+        value: domain1:pool1
+    cinder_user_enabled_backends: ['vxflexos']
