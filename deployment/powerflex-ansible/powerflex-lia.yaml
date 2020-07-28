@@ -73,7 +73,7 @@ outputs:
       external_upgrade_tasks: {}
       config_settings: 
         map_merge:
-        - tripleo::powerflex_lias::firewall_rules:
+        - tripleo::powerflex_lia::firewall_rules:
             '201 powerlex_lia':
               dport:
                 list_concat:
