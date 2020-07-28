@@ -36,10 +36,10 @@
 - name: load the policy package file into SElinux
   command: semodule -i /tmp/scini.pp
 
+- include: ../../powerflex-common/tasks/install_powerflex.yaml
+
 - name: restore SElinux context
   command: restorecon -R -v /bin/emc/scaleio
-
-- include: ../../powerflex-common/tasks/install_powerflex.yaml
 
 - name: login to MDM
   command: scli --login --username admin --password "{{ password }}" --approve_certificate

@@ -162,6 +162,6 @@ outputs:
                 powerflex_ansible_playbook_verbosity: {get_param: PowerflexAnsiblePlaybookVerbosity}
             - name: run powerflex-ansible
               include_role:
-                name: tripleo-powerflex-run-ansible
+                name: tripleo-powerflex-run-ansible 
       external_update_tasks: {}
       external_upgrade_tasks: {}
