@@ -323,11 +323,6 @@ resource_registry:
   OS::TripleO::Services::DesignateMDNS: OS::Heat::None
   OS::TripleO::Services::DesignateSink: OS::Heat::None
 
-  OS::TripleO::Services::PowerFlexLIA: OS::Heat::None
-  OS::TripleO::Services::PowerFlexMDM: OS::Heat::None
-  OS::TripleO::Services::PowerFlexSDC: OS::Heat::None
-  OS::TripleO::Services::PowerFlexSDS: OS::Heat::None
-
 
   # Default Neutron ML2 puppet plugin to use when NeutronCorePlugin is set to ML2
   # FIXME(bogdando): can not be switched yet due to puppet-base issues
