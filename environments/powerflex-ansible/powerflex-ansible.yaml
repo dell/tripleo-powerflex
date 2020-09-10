@@ -19,9 +19,6 @@ parameter_defaults:
   # Only 3-node cluster config is supported at this time
   PowerFlexClusterConfig: 3_node
 
-  # Interface used for configuration by Ansible. Added for RHOSP 16 as the ctlplane ip is not blocked.
-  PowerFlexConfigInterface: eno3
-  
   # Interface used for Management access. Must be accessible from external. (Optional)
   PowerFlexMgmtInterface: vlan881
 
