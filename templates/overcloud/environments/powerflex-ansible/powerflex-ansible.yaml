@@ -26,14 +26,12 @@ parameter_defaults:
   # physical ports as bonding is really not recommended in production.
   PowerFlexClusterInterface: vlan170
 
-  PowerFlexClusterVirtualIP: 192.168.170.40
-
   # By default, All traffic including SDS-SDS and SDS-SDC goes to the same network
   # Uncomment the below line when using dedicated network rebuild and rebalance which can
   # traffic intensive based upon the eventual failure of a SDS node. (Optional)
-  #PowerFlexRebuildInterface: 
-  
-  PowerFlexDisks: ['/dev/nvme0n1','/dev/nvme1n1','/dev/nvme2n1','/dev/nvme3n1','/dev/nvme4n1','/dev/nvme5n1','/dev/nvme6n1','/dev/nvme7n1']
+  #PowerFlexRebuildInterface: vlan170
+
+  PowerFlexClusterVirtualIP: 192.168.170.40
 
   PowerFlexPassword: 'Vxflex123'
   PowerFlexLiaToken: 'Vxflex123'
