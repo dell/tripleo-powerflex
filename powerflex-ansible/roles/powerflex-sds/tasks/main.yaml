@@ -1,5 +1,11 @@
 - include: ../../powerflex-common/tasks/install_powerflex.yaml
 
+- name: build a disk list of unused devices
+  set_fact:
+    sds_disks: "{{ sds_disks|default([]) + [ '/dev/' + item.key ] }}"
+  with_dict: "{{ ansible_devices }}"
+  when: not item.value.partitions
+
 - name: login to MDM
   command: scli --login --username admin --password "{{ password }}" --approve_certificate
   run_once: true
@@ -7,12 +13,12 @@
 
 - name: add SDS if a dedicated netork for rebuild/rebalance is required
   command: >
-    scli --add_sds 
+    scli --add_sds
     --sds_ip {{ hostvars[inventory_hostname]['ansible_'+cluster_interface]['ipv4']['address'] }},{{ hostvars[inventory_hostname]['ansible_'+rebuild_interface]['ipv4']['address'] }}
     --sds_ip_role sds_only,sdc_only
-    --storage_pool_name {{ storage_pool }} 
-    --sds_name {{ hostvars[inventory_hostname]['ansible_hostname'] }} 
-    --protection_domain_name {{ protection_domain }} 
+    --storage_pool_name {{ storage_pool }}
+    --sds_name {{ hostvars[inventory_hostname]['ansible_hostname'] }}
+    --protection_domain_name {{ protection_domain }}
     --device_path {{ sds_disks|join(',') }}
     --force_device_takeover
     --i_am_sure
@@ -21,7 +27,7 @@
   register: add_devices
   until: add_devices.rc == 0
   delegate_to: "{{ powerflex_config_ip }}"
-  when: 
+  when:
     - sds_disks|length > 0
     - cluster_interface != rebuild_interface
 
