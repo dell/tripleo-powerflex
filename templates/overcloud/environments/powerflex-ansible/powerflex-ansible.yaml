@@ -33,7 +33,5 @@ parameter_defaults:
   # traffic intensive based upon the eventual failure of a SDS node. (Optional)
   #PowerFlexRebuildInterface: <powerflex_rebuild_interface>
   
-  PowerFlexDisks: <powerflex_disks>
-
   PowerFlexPassword: <powerflex_password>
   PowerFlexLiaToken: <powerflex_lia_token>
