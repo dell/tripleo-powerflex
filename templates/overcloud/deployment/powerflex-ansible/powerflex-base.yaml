@@ -96,10 +96,6 @@ parameters:
     default: 'Vxflex123!'
     description: LIA Token
     type: string
-  PowerFlexDisks:
-    default: []
-    description: List of comma separated values to use as disks for SDS
-    type: comma_delimited_list
   PowerFlexRpmsMethod:
     default: 'local'
     description: Method of getting RPMs to install. Can be either local or external
@@ -130,7 +126,6 @@ resources:
           cluster_vip: {get_param: PowerFlexClusterVirtualIP}
           password: {get_param: PowerFlexPassword}
           lia_token: {get_param: PowerFlexLiaToken}
-          sds_disks: {get_param: PowerFlexDisks}
 
 outputs:
   role_data:
