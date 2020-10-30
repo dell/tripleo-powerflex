@@ -63,3 +63,15 @@
   service:
     name: scini
     state: restarted
+
+- name: Create mount point for Glance/Nova/Cinder
+  file:
+    path: /opt/emc/scaleio/openstack
+    state: directory
+
+- name: Generate connector
+  template: 
+    src : connector.conf.j2
+    dest: /opt/emc/scaleio/openstack/connector.conf 
+
+
