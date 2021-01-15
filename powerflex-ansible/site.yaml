@@ -29,7 +29,7 @@
   gather_facts: no
   become: true
   roles:
-   - powerflex-mdm
+   - { role: "powerflex-mdm", when: "'EMC-ScaleIO-mdm' not in ansible_facts.packages" }
   tags: powerflex-mdm
 
 - hosts: tbs
@@ -37,36 +37,37 @@
   gather_facts: no
   become: true
   roles:
-   - powerflex-tb
+   - { role: "powerflex-tb", when: "'EMC-ScaleIO-mdm' not in ansible_facts.packages" }
   tags: powerflex-tb
 
 - hosts: mdms
   name: "Configure PowerFlex storage"
   gather_facts: no
   roles:
-    - powerflex-config
+    - { role: "powerflex-config", when: "'EMC-ScaleIO-mdm' not in ansible_facts.packages" }
   tags: powerflex-config
-                
+
 - hosts: sdss
   name: "Install PowerFlex SDS"
   gather_facts: no
   become: true
   roles:
-    - powerflex-sds
+    - { role: "powerflex-sds", when: "'EMC-ScaleIO-sds' not in ansible_facts.packages" }
   tags: powerflex-sds
 
 - hosts: all
   name: "Install PowerFlex LIA"
   gather_facts: no
   become: true
-  roles: 
-    - powerflex-lia
+  roles:
+    - { role: "powerflex-lia", when: "'EMC-ScaleIO-lia' not in ansible_facts.packages" }
   tags: powerflex-lia
-                
+
 - hosts: sdcs
   name: "Install PowerFlex SDC"
   gather_facts: no
   become: true
   roles:
-    - powerflex-sdc
+    - { role: "powerflex-sdc", when: "'EMC-ScaleIO-sdc' not in ansible_facts.packages" }
   tags: powerflex-sdc
+
