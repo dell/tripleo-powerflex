@@ -7,11 +7,11 @@ parameter_defaults:
       powerflex/volume_backend_name:
         value: powerflex
       powerflex/san_ip:
-        value: 100.67.88.10
+        value: <hidden>
       powerflex/san_login:
-        value: admin
+        value: <hidden>
       powerflex/san_password:
-        value: Vxflex123
+        value: <hidden>
       powerflex/sio_storage_pools:
         value: domain1:pool1
     cinder_user_enabled_backends: ['powerflex']
